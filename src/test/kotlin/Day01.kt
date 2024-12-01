@@ -2,10 +2,7 @@ import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.shouldBe
 import kotlin.math.absoluteValue
 
-class Day01Part1: BehaviorSpec() {
-
-    init {
-    val exampleInput = """
+val exampleInputDay01 = """
         3   4
         4   3
         2   5
@@ -14,9 +11,11 @@ class Day01Part1: BehaviorSpec() {
         3   3
     """.trimIndent()
 
+class Day01Part1: BehaviorSpec() { init {
+
     Given("example input") {
         When("parsing note pairs") {
-            val notePairs = parseNotePairs(exampleInput)
+            val notePairs = parseNotePairs(exampleInputDay01)
             Then("should be parsed") {
                 notePairs[0] shouldBe (3 to 4)
             }
@@ -44,21 +43,18 @@ class Day01Part1: BehaviorSpec() {
             }
         }
     }
+} }
 
-}
+private fun pairsDistance(pairs: List<Pair<Int, Int>>) = pairs.map { (it.first - it.second).absoluteValue }
 
-    private fun pairsDistance(pairs: List<Pair<Int, Int>>) = pairs.map { (it.first - it.second).absoluteValue }
-
-    private fun parseNotePairs(input: String): List<Pair<Int, Int>> =
-        input.split("\n"). map {
-            val stringParts = it.trim().split("""\s+""".toRegex()).map { it.toInt() }
-            stringParts[0] to stringParts[1]
-        }
-
-    private fun sortPairsIndividually(notePairs: List<Pair<Int, Int>>): List<Pair<Int, Int>> {
-        val list1 = notePairs.map { it.first }.sorted()
-        val list2 = notePairs.map { it.second }.sorted()
-        return list1.zip(list2)
+private fun parseNotePairs(input: String): List<Pair<Int, Int>> =
+    input.split("\n"). map {
+        val stringParts = it.trim().split("""\s+""".toRegex()).map { it.toInt() }
+        stringParts[0] to stringParts[1]
     }
-}
 
+private fun sortPairsIndividually(notePairs: List<Pair<Int, Int>>): List<Pair<Int, Int>> {
+    val list1 = notePairs.map { it.first }.sorted()
+    val list2 = notePairs.map { it.second }.sorted()
+    return list1.zip(list2)
+}
