@@ -1,4 +1,5 @@
 import io.kotest.core.spec.style.BehaviorSpec
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 
 val exampleInputDay04String = """
@@ -8,6 +9,19 @@ val exampleInputDay04String = """
         XMAS.S
         .X....
     """.trimIndent()
+
+val longerExampleDay04String = """
+            MMMSXXMASM
+            MSAMXMSMSA
+            AMXSXMAAMM
+            MSAMASMSMX
+            XMASAMXAMM
+            XXAMMXXAMA
+            SMSMSASXSS
+            SAXAMASAAA
+            MAMMMXMMMM
+            MXMXAXMASX
+        """.trimIndent()
 
 class Day04Part1: BehaviorSpec() { init {
 
@@ -58,26 +72,13 @@ class Day04Part1: BehaviorSpec() { init {
         }
     }
     Given("a longer example") {
-        val longerExample = """
-            MMMSXXMASM
-            MSAMXMSMSA
-            AMXSXMAAMM
-            MSAMASMSMX
-            XMASAMXAMM
-            XXAMMXXAMA
-            SMSMSASXSS
-            SAXAMASAAA
-            MAMMMXMMMM
-            MXMXAXMASX
-        """.trimIndent()
         Then("count XMAS in lines") {
-            longerExample.split("\n").allLines().countString("XMAS".toRegex()) shouldBe 18
+            longerExampleDay04String.split("\n").allLines().countString("XMAS".toRegex()) shouldBe 18
         }
     }
 
     Given("exercise input") {
         val inputLines = readResource("inputDay04.txt")!!.split("\n")
-
         Then("should should count XMAS") {
             inputLines.allLines().countString("XMAS".toRegex()) shouldBe 2662
         }
@@ -86,12 +87,57 @@ class Day04Part1: BehaviorSpec() { init {
 
 
 class Day04Part2: BehaviorSpec() { init {
+    val xMas = """
+        M.S
+        .A.
+        M.S
+    """.trimIndent().split("\n")
+    val xMasShapes = listOf(
+        """
+        M.S
+        .A.
+        M.S
+    """.trimIndent().split("\n"),       """
+        M.M
+        .A.
+        S.S
+    """.trimIndent().split("\n"),
+        """
+        S.M
+        .A.
+        S.M
+    """.trimIndent().split("\n"),
+        """
+        S.S
+        .A.
+        M.M
+    """.trimIndent().split("\n")
+    )
+    Given("longer example input") {
+        val longerExample = longerExampleDay04String.split("\n")
+        Then("should find shape") {
+            val shapes = longerExample.findShape(xMas)
+            shapes shouldContain (1 to 0)
+            shapes.size shouldBe 2
+        }
+        Then("should find shapes") {
+            val shapes = longerExample.findShapes(xMasShapes)
+            shapes shouldContain (1 to 0)
+            shapes.size shouldBe 9
+        }
+    }
 
-} }
+    Given("exercise input") {
+        val inputLines = readResource("inputDay04.txt")!!.split("\n")
+        Then("should should count X-MAS shapes") {
+            val shapes = inputLines.findShapes(xMasShapes)
+            shapes.size shouldBe 2034
+        }
+    }} }
 
 fun WordPuzzle.lines() = this
 fun WordPuzzle.rows() = (0 until this[0].length).map { x ->
-    (0 until this.size).map { y ->
+    indices.map { y ->
         this[y][x] }.joinToString("")
 }
 fun WordPuzzle.diagonals1() = sequence {
@@ -144,6 +190,30 @@ fun WordPuzzle.allLines() =
 
 typealias WordPuzzle = List<String>
 
-fun List<String>.countString(regex: Regex): Int = map { line ->
+fun List<String>.countString(regex: Regex): Int = sumOf { line ->
     regex.findAll(line).count()
-}.sum()
+}
+
+fun WordPuzzle.findShape(shape: List<String>) = sequence {
+    for (x in 0 until this@findShape[0].length)
+        for (y in indices) {
+            var foundShapeMismatch = false
+            for (sx in 0 until shape[0].length)
+                for (sy in shape.indices) {
+                    val c = shape[sy][sx]
+                    if (x + sx >= this@findShape[0].length || y + sy >= this@findShape.size) {
+                        foundShapeMismatch = true
+                    }
+                    else if (c != '.')
+                        if (this@findShape[y + sy][x + sx] != c) {
+                            foundShapeMismatch = true
+                        }
+
+                }
+            if (! foundShapeMismatch) yield(x to y)
+        }
+}.toList()
+
+fun WordPuzzle.findShapes(shapes: List<List<String>>) = shapes.flatMap { shape ->
+    this.findShape(shape)
+}
