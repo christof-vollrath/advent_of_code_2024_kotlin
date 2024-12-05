@@ -1,5 +1,7 @@
 import io.kotest.core.spec.style.BehaviorSpec
+import io.kotest.matchers.ints.shouldBeLessThan
 import io.kotest.matchers.shouldBe
+import java.util.stream.Collectors
 
 val exampleInputDay05 = """
         47|53
@@ -61,9 +63,9 @@ class Day05Part1: BehaviorSpec() { init {
                 Then("it should return only pages fulfilling the requirement") {
                     okPages shouldBe
                             listOf(
-                                listOf(75,47,61,53,29),
-                                listOf(97,61,53,29,13),
-                                listOf(75,29,13)
+                                listOf(75, 47, 61, 53, 29),
+                                listOf(97, 61, 53, 29, 13),
+                                listOf(75, 29, 13)
                             )
                 }
                 Then("getting middle pages numbers") {
@@ -84,6 +86,52 @@ class Day05Part1: BehaviorSpec() { init {
         }
     }
 } }
+
+class Day05Part2: BehaviorSpec() { init {
+
+    Given("example input") {
+        val (pageOrderingRules, pagesList) = parseInputDay05(exampleInputDay05)
+        val printRequirement = deriveAfterRequirements(pageOrderingRules)
+        Then("should find the wrong page") {
+            listOf(61, 13, 29).findFirstNotMatchingRequirement(printRequirement) shouldBe (29 to 13)
+        }
+        Then("should correct the page order") {
+            correctPageOrder(listOf(61, 13, 29), printRequirement) shouldBe listOf(61, 29, 13)
+        }
+        Then("should correct page order for some pages") {
+            listOf(
+                listOf(75, 97, 47, 61, 53),
+                listOf(61, 13, 29),
+                listOf(97, 13, 75, 29, 47)
+            ).correctPageOrders(printRequirement) shouldBe
+                listOf(
+                    listOf(97, 75, 47, 61, 53),
+                    listOf(61, 29, 13),
+                    listOf(97, 75, 47, 29, 13)
+                )
+        }
+        Then("should correct the page order of all pages and calculate the sum") {
+            val wrongPages = pagesList.filterNotFulfillingRequirement(printRequirement)
+            val correctedPages = wrongPages.correctPageOrders(printRequirement)
+            val sum = selectMiddlePageNumbers(correctedPages).sum()
+            sum shouldBe 123
+            // also using parallel
+            selectMiddlePageNumbers(wrongPages.correctPageOrdersParallel(printRequirement)).sum() shouldBe 123
+        }
+    }
+    xGiven("exercise input") { // Takes about 25 sec even with the version using parallel streams
+        val (pageOrderingRules, pagesList) = parseInputDay05(readResource("inputDay05.txt")!!)
+        val printRequirement = deriveAfterRequirements(pageOrderingRules)
+        val wrongPages = pagesList.filterNotFulfillingRequirement(printRequirement)
+        val correctedPages = wrongPages.correctPageOrdersParallel(printRequirement)
+        val sum = selectMiddlePageNumbers(correctedPages).sum()
+        Then("should find solution") {
+            sum shouldBeLessThan 8665
+            sum shouldBe 4480
+        }
+    }
+
+}}
 
 
 private fun deriveAfterRequirements(pageOrderingRules: List<Pair<Int, Int>>): PrintRequirement {
@@ -112,15 +160,43 @@ private fun parsePagesPart(pagesPart: String): List<List<Int>> = pagesPart.split
 typealias PrintRequirement = Map<Int, Set<Int>>
 
 fun List<List<Int>>.filterFulfillingRequirement(requirement: PrintRequirement) = this.filter { it.fulfillsRequirement(requirement) }
+fun List<List<Int>>.filterNotFulfillingRequirement(requirement: PrintRequirement) = this.filter { ! it.fulfillsRequirement(requirement) }
 
-fun List<Int>.fulfillsRequirement(requirement: Map<Int, Set<Int>>): Boolean {
+fun List<Int>.fulfillsRequirement(requirement: Map<Int, Set<Int>>): Boolean =
+    this.findFirstNotMatchingRequirement(requirement) == null
+
+fun List<Int>.findFirstNotMatchingRequirement(requirement: Map<Int, Set<Int>>): Pair<Int, Int>? {
     val visitedPages = mutableSetOf<Int>()
     for(page in this) {
         val mustBeAfter = requirement[page] ?: emptySet()
-        if (visitedPages.any { mustBeAfter.contains(it) }) return false
+        val shouldBeAfter = visitedPages.intersect(mustBeAfter)
+        if (shouldBeAfter.isNotEmpty()) return page to shouldBeAfter.first()
         visitedPages.add(page)
     }
-    return true
+    return null
+}
+
+fun List<List<Int>>.correctPageOrders(requirement: PrintRequirement) = map { correctPageOrder(it, requirement) }
+
+fun List<List<Int>>.correctPageOrdersParallel(requirement: PrintRequirement) = parallelStream().map { correctPageOrder(it, requirement) }.collect(Collectors.toList())
+
+fun correctPageOrder(pages: List<Int>, requirement: PrintRequirement): List<Int> {
+    var corrected = pages
+    while(true) {
+        val nextCorrected = correctSingleError(corrected, requirement)
+        if (nextCorrected == corrected) return corrected // everything corrected
+        corrected = nextCorrected
+    }
+}
+
+fun correctSingleError(pages: List<Int>, requirement: PrintRequirement): List<Int> {
+    val result = pages.toMutableList()
+    val (before, after) = pages.findFirstNotMatchingRequirement(requirement) ?: return pages
+    val afterIndex = result.indexOf(after)
+    result.removeAt(afterIndex)
+    val beforeIndex = result.indexOf(before)
+    result.add(beforeIndex + 1, after)
+    return  result
 }
 
 private fun selectMiddlePageNumbers(okPages: List<List<Int>>): List<Int> = okPages.map { it[it.size / 2]}
