@@ -1,5 +1,7 @@
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.ints.shouldBeGreaterThan
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
 val exampleInputDay06 = """
@@ -30,6 +32,7 @@ class Day06Part1: BehaviorSpec() { init {
             }
             When("fallow the guard") {
                 val path = fallowTheGuard(situationMap, startPos)
+                path.shouldNotBeNull()
                 Then("fallow the guard should leave the map at the right position") {
                     path.last() shouldBe Coord2(7, 9)
                 }
@@ -64,9 +67,59 @@ class Day06Part1: BehaviorSpec() { init {
         Then("should find solution") {
             val startPos = situationMap.findStartPosition('^')
             val path = fallowTheGuard(situationMap, startPos)
+            path.shouldNotBeNull()
+            //println("Leaving map at ${path.last()}")
             //println(printSituationMapAndPath(situationMap, path))
             path.toSet().size shouldBeGreaterThan 4972
             path.toSet().size shouldBe 4973
+        }
+    }
+} }
+
+class Day06Part2: BehaviorSpec() { init {
+
+    Given("small example with a loop") {
+        val situationMap = parseSituationMap("""
+            ####
+            #..#
+            #^.#
+            ####
+        """.trimIndent())
+        val startPos = situationMap.findStartPosition('^')
+        Then("guard should run in a loop") {
+            val path = fallowTheGuard(situationMap, startPos)
+            path.shouldBeNull()
+        }
+    }
+    Given("example input") {
+        val situationMap = parseSituationMap(exampleInputDay06)
+        val startPos = situationMap.findStartPosition('^')
+        When("adding the right obstruction") {
+            val changedSituationMap = situationMap.map { it.toMutableList() }
+            changedSituationMap[6][3] = '#'
+            Then("guard should run in a loop") {
+                val path = fallowTheGuard(changedSituationMap, startPos)
+                path.shouldBeNull()
+            }
+        }
+        When("searching for all obstructions") {
+            val obstrations = searchObstructions(situationMap, startPos)
+            Then("should have found all") {
+                obstrations.size shouldBe 6
+            }
+        }
+    }
+
+    xGiven("exercise input") { // Runs for about 5 seconds
+        val situationMap = parseSituationMap(readResource("inputDay06.txt")!!)
+        val startPos = situationMap.findStartPosition('^')
+        Then("situation map should be parsed") {
+            situationMap.size shouldBe 130
+            situationMap[0].size shouldBe 130
+        }
+        Then("should find solution") {
+            val obstrations = searchObstructions(situationMap, startPos)
+            obstrations.size shouldBe 1482
         }
     }
 } }
@@ -78,21 +131,39 @@ private enum class Direction(val coord: Coord2) {
     LEFT(Coord2(-1, 0))
 }
 
-private fun fallowTheGuard(situationMap: List<List<Char>>, startPos: Coord2): List<Coord2> = sequence {
-    yield(startPos)
+private fun fallowTheGuard(situationMap: List<List<Char>>, startPos: Coord2): List<Coord2>? {
     var currentPos = startPos
     var dir = Direction.UP
+    val visited = mutableSetOf(currentPos to dir)
+    val path = mutableListOf(currentPos)
     while(true) {
         val nextPos = currentPos + dir.coord
         if (! (nextPos.x in 0 until situationMap[0].size
             && nextPos.y in 0 until situationMap.size)) break
         if (situationMap[nextPos.y][nextPos.x] == '#') {
             dir = turn90(dir)
+            if (visited.contains((currentPos to dir))) return null // Loop
         } else {
             currentPos = nextPos
-            yield(nextPos)
+            if (visited.contains(currentPos to dir)) return null // Loop
+            visited.add(currentPos to dir)
+            path.add(currentPos)
         }
     }
+    return path
+}
+
+private fun searchObstructions(situationMap: List<List<Char>>, startPos: Coord2): List<Coord2> = sequence {
+    for (x in situationMap[0].indices)
+        for(y in situationMap.indices)
+            if (situationMap[y][x] == '.') {
+                val changedSituationMap = situationMap.map { it.toMutableList() }
+                changedSituationMap[y][x] = '#'
+                val path = fallowTheGuard(changedSituationMap, startPos)
+                if (path == null) {
+                    yield(Coord2(x, y))
+                }
+            }
 }.toList()
 
 private fun parseSituationMap(input: String): List<List<Char>> = input.split("\n").map { it.toList() }
@@ -112,7 +183,7 @@ private fun turn90(dir: Direction) =
         }
 
 private fun printSituationMapAndPath(situationMap: List<List<Char>>, path: List<Coord2>): String {
-    val pathSet = path.toSet()
+    val pathSet = path.map { it }.toSet()
     return situationMap.indices.map { y ->
         situationMap[0].indices.map { x ->
             if (pathSet.contains(Coord2(x, y))) 'X'
