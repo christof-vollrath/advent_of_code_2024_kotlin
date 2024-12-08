@@ -102,6 +102,36 @@ class Day07Part1: BehaviorSpec() { init {
     }
 } }
 
+class Day07Part2: BehaviorSpec() { init {
+
+    Given("a simple example where the operator is concat") {
+        val result = findOperator2(52, listOf(5, 2))
+        Then("operator should be found") {
+            result.shouldNotBeNull()
+            result.first shouldBe 52
+            result.second shouldBe listOf(concat)
+        }
+    }
+    Given("example input") {
+        val calibrationEquations = parseCalibrationEquations(exampleInputDay07)
+        Then("finding matching operators 2") {
+            val results = calibrationEquations.mapNotNull { findOperator2(it.expected, it.numbers) }
+            results.size shouldBe 6
+            results.map { it.first } shouldBe listOf(190, 3267, 156, 7290, 192, 292)
+            results.sumOf { it.first } shouldBe 11387L
+        }
+    }
+
+    Given("exercise input") {
+        val calibrationEquations = parseCalibrationEquations(readResource("inputDay07.txt")!!)
+        Then("finding matching operators") {
+            val results = calibrationEquations.mapNotNull { findOperator2(it.expected, it.numbers) }
+            results.size shouldBe 618
+            results.sumOf { it.first } shouldBe 500_335_179_214_836L
+        }
+    }
+} }
+
 data class CalibrationEquation(val expected: Long, val numbers: List<Long>)
 
 private fun parseCalibrationEquations(input: String): List<CalibrationEquation> = input.split("\n").map { line ->
@@ -113,6 +143,7 @@ private fun parseCalibrationEquations(input: String): List<CalibrationEquation> 
 
 val plus = { a: Long, b: Long -> a + b }
 val mult = { a: Long, b: Long -> a * b }
+val concat = { a: Long, b: Long -> (a.toString() + b.toString()).toLong() }
 
 private fun findOperator(expectedResult: Long, numbers: List<Long>, ops: List<(Long, Long)->Long> = emptyList(), interimResult: Long = 0, pendingOp: ((Long, Long) -> Long)? = null): Pair<Long, List<(Long, Long)->Long>>? {
     return when {
@@ -122,12 +153,12 @@ private fun findOperator(expectedResult: Long, numbers: List<Long>, ops: List<(L
         }
         numbers.size == 1 -> {
             val nextOps = if (pendingOp == null) ops else ops + pendingOp
-            val nextInterimResult = if (pendingOp == null) numbers.first() else pendingOp(numbers.first(), interimResult)
+            val nextInterimResult = if (pendingOp == null) numbers.first() else pendingOp(interimResult, numbers.first())
             findOperator(expectedResult, numbers.drop(1), nextOps, nextInterimResult)
         }
         else -> {
             val nextOps = if (pendingOp == null) ops else ops + pendingOp
-            val nextInterimResult = if (pendingOp == null) numbers.first() else pendingOp(numbers.first(), interimResult)
+            val nextInterimResult = if (pendingOp == null) numbers.first() else pendingOp(interimResult, numbers.first())
             val nextNumbers = numbers.drop(1)
             // try out plus
             val resultPlus = findOperator(expectedResult, nextNumbers, nextOps, nextInterimResult, plus)
@@ -135,6 +166,38 @@ private fun findOperator(expectedResult: Long, numbers: List<Long>, ops: List<(L
             else {
                 // try out mult
                 findOperator(expectedResult, nextNumbers, nextOps, nextInterimResult, mult)
+            }
+        }
+    }
+}
+
+
+private fun findOperator2(expectedResult: Long, numbers: List<Long>, ops: List<(Long, Long)->Long> = emptyList(), interimResult: Long = 0, pendingOp: ((Long, Long) -> Long)? = null): Pair<Long, List<(Long, Long)->Long>>? {
+    return when {
+        numbers.isEmpty() -> {
+            if (interimResult == expectedResult) interimResult to ops
+            else null
+        }
+        numbers.size == 1 -> {
+            val nextOps = if (pendingOp == null) ops else ops + pendingOp
+            val nextInterimResult = if (pendingOp == null) numbers.first() else pendingOp(interimResult, numbers.first())
+            findOperator2(expectedResult, numbers.drop(1), nextOps, nextInterimResult)
+        }
+        else -> {
+            val nextOps = if (pendingOp == null) ops else ops + pendingOp
+            val nextInterimResult = if (pendingOp == null) numbers.first() else pendingOp(interimResult, numbers.first())
+            val nextNumbers = numbers.drop(1)
+            // try out plus
+            val resultPlus = findOperator2(expectedResult, nextNumbers, nextOps, nextInterimResult, plus)
+            if (resultPlus != null) resultPlus
+            else {
+                // try out mult
+                val resultMult = findOperator2(expectedResult, nextNumbers, nextOps, nextInterimResult, mult)
+                if (resultMult != null) resultMult
+                else {
+                    // try out concat
+                    findOperator2(expectedResult, nextNumbers, nextOps, nextInterimResult, concat)
+                }
             }
         }
     }
