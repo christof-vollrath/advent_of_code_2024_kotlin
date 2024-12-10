@@ -44,7 +44,7 @@ class Day10Part1: BehaviorSpec() { init {
             9876            
         """.trimIndent()
         val example1Result = findPaths(parseIslandMap(example1), 9)
-        Then("should have found path for first example") {
+        Then("should have found path") {
             example1Result.size shouldBe 1
             example1Result[0].first shouldBe Coord2(0, 0)
             example1Result[0].second.size shouldBe 1
@@ -59,7 +59,7 @@ class Day10Part1: BehaviorSpec() { init {
             9.....9      
         """.trimIndent()
         val example2Result = findPaths(parseIslandMap(example2), 9)
-        Then("should have found path for first example") {
+        Then("should have found path") {
             example2Result.size shouldBe 1
             example2Result[0].second.size shouldBe 2
         }
@@ -73,7 +73,7 @@ class Day10Part1: BehaviorSpec() { init {
             .....01
         """.trimIndent()
         val example3Result = findPaths(parseIslandMap(example3), 9)
-        Then("should have found path for first example") {
+        Then("should have found paths") {
             example3Result.size shouldBe 2
             example3Result[0].second.size shouldBe 1
             example3Result[1].second.size shouldBe 2
@@ -89,7 +89,7 @@ class Day10Part1: BehaviorSpec() { init {
             10456732
         """.trimIndent()
         val example4Result = findPaths(parseIslandMap(example4), 9)
-        Then("should have found path for first example") {
+        Then("should have found paths") {
             example4Result.size shouldBe 9
             example4Result.map { it.second.size } shouldBe listOf(5, 6, 5, 3, 1, 3, 5, 3, 5)
             example4Result.map { it.second.size }.sum() shouldBe 36
@@ -101,6 +101,61 @@ class Day10Part1: BehaviorSpec() { init {
         val result = findPaths(parseIslandMap(input), 9)
         Then("result should have the right sum") {
             result.map { it.second.size }.sum() shouldBe 794
+        }
+    }
+} }
+
+class Day10Part2: BehaviorSpec() { init {
+
+    Given("examples") {
+        val example1 = """
+            .....0.
+            ..4321.
+            ..5..2.
+            ..6543.
+            ..7..4.
+            ..8765.
+            ..9....           
+        """.trimIndent()
+        val example1Result = findPaths2(parseIslandMap(example1), 9)
+        Then("should have found 3 trails") {
+            example1Result.size shouldBe 1
+            example1Result[0].first shouldBe Coord2(5, 0)
+            example1Result[0].second.size shouldBe 3
+        }
+        val example2 = """
+            ..90..9
+            ...1.98
+            ...2..7
+            6543456
+            765.987
+            876....
+            987....           
+        """.trimIndent()
+        val example2Result = findPaths2(parseIslandMap(example2), 9)
+        Then("should have found trails") {
+            example2Result.size shouldBe 1
+            example2Result[0].second.size shouldBe 13
+        }
+        val example3 = """
+            012345
+            123456
+            234567
+            345678
+            4.6789
+            56789.          
+        """.trimIndent()
+        val example3Result = findPaths2(parseIslandMap(example3), 9)
+        Then("should have found trails") {
+            example3Result.map { it.second.size }.sum() shouldBe 227
+        }
+    }
+
+    Given("exercise input") {
+        val input = readResource("inputDay10.txt")!!
+        val result = findPaths2(parseIslandMap(input), 9)
+        Then("result should have the right sum") {
+            result.map { it.second.size }.sum() shouldBe 1706
         }
     }
 } }
@@ -157,3 +212,28 @@ private fun findPaths(map: List<List<Int>>, highest: Int): List<Pair<Coord2, Lis
     trailhead to findPathsForTrailhead(trailhead, map, highest)
 }
 
+private fun findPaths2(map: List<List<Int>>, highest: Int): List<Pair<Coord2, List<List<Coord2>>>> = findTrailheads(map).map { trailhead ->
+    trailhead to findPathsForTrailhead2(trailhead, map, highest)
+}
+private fun findPathsForTrailhead2(trailhead: Coord2, map: List<List<Int>>, highest: Int): List<List<Coord2>> {
+    val pathsFound = mutableListOf<List<Coord2>>()
+    var currentPaths = listOf(listOf(trailhead))
+    while(currentPaths.isNotEmpty()) {
+        val nextPaths = mutableListOf<List<Coord2>>()
+        currentPaths.forEachIndexed { i, currentPath ->
+            val currentCoord = currentPath.last()
+            val nextSteps = findNextSteps(currentCoord, map).filter { nextStep ->
+                map[nextStep.y][nextStep.x] - map[currentCoord.y][currentCoord.x] == 1
+            }
+            for(nextStep in nextSteps) {
+                if (map[nextStep.y][nextStep.x] == highest) {
+                    pathsFound.add(currentPath + nextStep) // reached an end
+                } else {
+                    nextPaths.add(currentPath + nextStep)
+                }
+            } // Since climbing one step no danger to go back
+        }
+        currentPaths = nextPaths
+    }
+    return pathsFound
+}
