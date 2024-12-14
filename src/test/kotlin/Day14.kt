@@ -87,6 +87,16 @@ class Day14Part1: BehaviorSpec() { init {
     }
 } }
 
+class Day14Part2: BehaviorSpec() { init { // takes more than 5 secs
+    Given("exercise input") {
+        val securityRobots = parseSecurityRobots(readResource("inputDay14.txt")!!)
+        val bathroom = Coord2(101, 103)
+        xThen("robots have moved") {
+            moveRobots(securityRobots, bathroom, 10000, debug=true)
+        }
+    }
+} }
+
 data class SecurityRobot(var position: Coord2, val velocity: Coord2)
 
 private fun parseSecurityRobots(input: String): List<SecurityRobot> = input.split("\n").map { line ->
@@ -100,8 +110,19 @@ private fun parseSecurityRobots(input: String): List<SecurityRobot> = input.spli
     SecurityRobot(Coord2(nums[0], nums[1]), Coord2(nums[2], nums[3]))
 }
 
-private fun moveRobots(securityRobots: List<SecurityRobot>, room: Coord2, nr: Int) =
-    repeat(nr) { moveRobots(securityRobots, room) }
+private fun moveRobots(securityRobots: List<SecurityRobot>, room: Coord2, nr: Int, debug: Boolean = false) {
+    for (i in 1..nr) {
+        moveRobots(securityRobots, room)
+        if (debug) {
+            val printed = printSecurityRobots(securityRobots, room)
+            if (printed.split("\n").any { it.toCharArray().filter { c -> c == '1'}.count() > 30 } && i == 6752 )  { // only solutions which might look like a christmas
+                println("move: $i")
+                println(printed)
+                println()
+            }
+        }
+    }
+}
 
 private fun moveRobots(securityRobots: List<SecurityRobot>, room: Coord2) {
     securityRobots.forEach {
@@ -121,7 +142,6 @@ private fun moveRobot(securityRobot: SecurityRobot, room: Coord2) {
 }
 
 private fun printSecurityRobots(securityRobots: List<SecurityRobot>, room: Coord2): String {
-    println(securityRobots.size)
     val robotMap = securityRobots.groupBy { it.position }
     return (0 until room.y).map { y ->
         (0 until room.x).map { x ->
