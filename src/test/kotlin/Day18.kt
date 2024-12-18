@@ -40,7 +40,7 @@ class Day18Part1: BehaviorSpec() { init {
         }
         When("creating memory") {
             val first12Bytes = byteCoords.take(12)
-            val memory = createMemory(first12Bytes, Coord2(6, 6))
+            val memory = createMemory(Coord2(6, 6), first12Bytes)
             Then("should be printable") {
                 printMemory(memory) shouldBe """
                 ...#...
@@ -89,7 +89,7 @@ class Day18Part1: BehaviorSpec() { init {
         }
         When("initialising memory") {
             val firstKilobyte = byteCoords.take(1024)
-            val memory = createMemory(firstKilobyte, Coord2(70, 70))
+            val memory = createMemory(Coord2(70, 70), firstKilobyte)
             val path = findMemoryPath(Coord2(0, 0), Coord2(70, 70), memory)
             //println(printMemory(memory, path))
             Then("should have found the solution") {
@@ -97,6 +97,31 @@ class Day18Part1: BehaviorSpec() { init {
                 solution shouldBe 372
             }
 
+        }
+    }
+} }
+
+class Day18Part2: BehaviorSpec() { init {
+
+    Given("example") {
+        val byteCoords = parseIncomingBytes(exampleInputDay18)
+        val memory = createMemory(Coord2(6, 6))
+        When("finding blocking memory") {
+            val block = findBlockingMemoryPath(Coord2(0, 0), Coord2(6, 6), memory, byteCoords)
+            Then("should find solution") {
+                block shouldBe Coord2(6, 1)
+            }
+        }
+    }
+
+    Given("exercise input") {
+        val byteCoords = parseIncomingBytes(readResource("inputDay18.txt")!!)
+        val memory = createMemory(Coord2(70, 70))
+        When("finding blocking memory") {
+            val block = findBlockingMemoryPath(Coord2(0, 0), Coord2(70, 70), memory, byteCoords)
+            Then("should find solution") {
+                block shouldBe Coord2(25, 6)
+            }
         }
     }
 } }
@@ -112,7 +137,7 @@ private fun parseIncomingBytes(input: String) = input.split("\n").map { line ->
     Coord2(nums[0], nums[1])
 }
 
-private fun createMemory(bytePositions: List<Coord2>, lowerRightCorner: Coord2): List<List<Char>> {
+private fun createMemory(lowerRightCorner: Coord2, bytePositions: List<Coord2> = emptyList()): List<MutableList<Char>> {
     val result = (0 .. lowerRightCorner.y).map { y ->
         (0 .. lowerRightCorner.x).map { x ->
             '.'
@@ -150,6 +175,7 @@ private fun findMemoryPath(from: Coord2, to: Coord2, memory: List<List<Char>>): 
                 visited.add(it)
             }
         }
+        if (nextPaths.isEmpty()) return emptyList()
         currPaths = nextPaths
     }
 }
@@ -158,3 +184,13 @@ val cornerDeltas = listOf(Coord2(1, 0), Coord2(0, 1), Coord2(-1, 0), Coord2(0, -
 
 private fun nextMemories(pos: Coord2, lowerRightCorner: Coord2) = cornerDeltas.map { pos + it }
     .filter { 0 <= it.x && 0 <= it.y && it.x <= lowerRightCorner.x && it.y <= lowerRightCorner.y }
+
+private fun findBlockingMemoryPath(from: Coord2, to: Coord2, memory: List<MutableList<Char>>, byteCoords: List<Coord2>): Coord2 {
+    var path: List<Coord2> = emptyList()
+    byteCoords.forEach { coord ->
+        memory[coord.y][coord.x] = '#'
+        path = findMemoryPath(from, to, memory)
+        if (path.isEmpty()) return coord
+    }
+    throw IllegalArgumentException("path found even with all bytes blocked:\n ${printMemory(memory, path)}")
+}
