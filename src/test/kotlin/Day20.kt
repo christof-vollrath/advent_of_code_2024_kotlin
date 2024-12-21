@@ -1,4 +1,5 @@
 import io.kotest.core.spec.style.BehaviorSpec
+import io.kotest.matchers.ints.shouldBeGreaterThan
 
 import io.kotest.matchers.shouldBe
 
@@ -39,12 +40,20 @@ class Day20Part1: BehaviorSpec() { init {
                 path.size - 1 shouldBe 84 // path contains start
                 path.last().second shouldBe 84
             }
-            Then("find shortcuts") {
+            When("finding shortcuts") {
                 val shortCuts = findShortCuts(path)
-                shortCuts.size shouldBe 44
-                val groupedAndSorted = groupAndSortShortCuts(shortCuts)
-                groupedAndSorted[0].first shouldBe 2
-                groupedAndSorted[0].second.size shouldBe 14
+                Then("shortcuts should be found") {
+                    shortCuts.size shouldBe 44
+                }
+                Then("a more flexible version should find the same results") {
+                    val shortCuts2 = findShortCuts(path, 2)
+                    shortCuts2.toSet() shouldBe shortCuts.toSet()
+                }
+                Then("shortcuts can be grouped") {
+                    val groupedAndSorted = groupAndSortShortCuts(shortCuts)
+                    groupedAndSorted[0].first shouldBe 2
+                    groupedAndSorted[0].second.size shouldBe 14
+                }
             }
         }
     }
@@ -54,24 +63,88 @@ class Day20Part1: BehaviorSpec() { init {
         Then("should be parsed") {
             maze.size shouldBe 141
         }
-        Then("path should be found") {
-            val path = findMazePath(start, end, maze)
-            path.size - 1 shouldBe 9336 // path contains start
-            path.last().second shouldBe 9336
-        }
         When("path should be found") {
             val path = findMazePath(start, end, maze)
             Then("path should be found") {
                 path.size - 1 shouldBe 9336 // path contains start
                 path.last().second shouldBe 9336
             }
-            Then("find shortcuts") {
+            When("finding shortcuts") {
                 val shortCuts = findShortCuts(path)
-                shortCuts.size shouldBe 6948
-                val groupedAndSorted100 = groupAndSortShortCuts(shortCuts)
-                    .filter { it.first >= 100}
-                val sumCount = groupedAndSorted100.sumOf { it.second.size }
-                sumCount shouldBe 1372
+                Then("should be found") {
+                    shortCuts.size shouldBe 6948
+                    val groupedAndSorted100 = groupAndSortShortCuts(shortCuts)
+                        .filter { it.first >= 100}
+                    val sumCount = groupedAndSorted100.sumOf { it.second.size }
+                    sumCount shouldBe 1372
+                }
+                Then("a more flexible version should find the same results") {
+                    val shortCuts2 = findShortCuts(path, 2)
+                    shortCuts2.size shouldBe 6948 // unfortunately shortcuts are found in a different order
+                    shortCuts2.toSet() shouldBe shortCuts.toSet()
+                }
+                Then("more flexible version with limit for savings") {
+                    val shortCuts2 = findShortCuts(path, 2, 100)
+                    val groupedAndSorted = groupAndSortShortCuts(shortCuts2)
+                    groupedAndSorted.sumOf { it.second.size } shouldBe 1372
+                }
+            }
+        }
+    }
+}}
+
+class Day20Part2: BehaviorSpec() { init {
+
+    Given("example") {
+        val (start, end, maze) = parseRacetrack(exampleInputDay20)
+        When("path should be found") {
+            val path = findMazePath(start, end, maze)
+            Then("path should be found") {
+                path.last().second shouldBe 84
+            }
+            When("finding shortcuts") {
+                val shortCuts = findShortCuts(path, 20, 50)
+                Then("shortcuts should be found") {
+                    shortCuts.size shouldBeGreaterThan 44
+                }
+                Then("shortcuts can be grouped") {
+                    val groupedAndSorted = groupAndSortShortCuts(shortCuts)
+                    groupedAndSorted.map { (savings, shortCuts) -> shortCuts.size to savings } shouldBe listOf (
+                        32 to 50,
+                        31 to 52,
+                        29 to 54,
+                        39 to 56,
+                        25 to 58,
+                        23 to 60,
+                        20 to 62,
+                        19 to 64,
+                        12 to 66,
+                        14 to 68,
+                        12 to 70,
+                        22 to 72,
+                        4 to 74,
+                        3 to 76
+                    )
+                }
+            }
+        }
+    }
+
+    Given("exercise input") {
+        val (start, end, maze) = parseRacetrack(readResource("inputDay20.txt")!!)
+        Then("should be parsed") {
+            maze.size shouldBe 141
+        }
+        When("path should be found") {
+            val path = findMazePath(start, end, maze)
+            Then("path should be found") {
+                path.last().second shouldBe 9336
+            }
+            When("finding shortcuts") {
+                val shortCuts = findShortCuts(path, 20, 100)
+                Then("shortcuts should be found") {
+                    shortCuts.size shouldBe 979014
+                }
             }
         }
     }
@@ -121,8 +194,22 @@ private fun findShortCuts(path: List<Pair<Coord2, Int>>): List<Pair<Coord2, Int>
             val shortCutTarget = pathMap[shortCutEndCoord]
             if (shortCutTarget != null) {
                 val savings = shortCutTarget - currLength - 2
-                if (savings > 1) yield(shortCutCoord to savings)
+                if (savings > 1) yield(tile to savings)
             }
+        }
+    }
+}.toList()
+
+private fun findShortCuts(path: List<Pair<Coord2, Int>>, maxShortCutLen: Int, minSavings: Int = 1): List<Pair<Coord2, Int>> = sequence {
+
+    path.forEachIndexed { i1, (currTile, currLength) ->
+        for (i2 in i1 + 1 until path.size) {
+            val shortCutCoord = path[i2].first
+            val remainingLen = path[i2].second
+            val shortCutLen = currTile.manhattanDistance(shortCutCoord)
+            val savings = remainingLen - currLength - shortCutLen
+            if (savings >= minSavings && shortCutLen <= maxShortCutLen)
+                yield(currTile to savings)
         }
     }
 }.toList()
