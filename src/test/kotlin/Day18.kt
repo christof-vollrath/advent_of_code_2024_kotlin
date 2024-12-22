@@ -180,7 +180,7 @@ private fun findMemoryPath(from: Coord2, to: Coord2, memory: List<List<Char>>): 
     }
 }
 
-val cornerDeltas = listOf(Coord2(1, 0), Coord2(0, 1), Coord2(-1, 0), Coord2(0, -1))
+private val cornerDeltas = listOf(Coord2(1, 0), Coord2(0, 1), Coord2(-1, 0), Coord2(0, -1))
 
 private fun nextMemories(pos: Coord2, lowerRightCorner: Coord2) = cornerDeltas.map { pos + it }
     .filter { 0 <= it.x && 0 <= it.y && it.x <= lowerRightCorner.x && it.y <= lowerRightCorner.y }
